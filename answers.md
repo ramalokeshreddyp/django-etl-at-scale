@@ -17,7 +17,7 @@ graph TD
     subgraph Transform Phase
         B -->|Parse JSON raw_data| C[Instantiate Orders & OrderLines in memory]
     end
-    subgraph Load Phase (Atomic Transaction)
+    subgraph "Load Phase (Atomic Transaction)"
         C -->|1. bulk_create| D[Order Table]
         D -->|2. in_bulk| E[Refetch generated Order PK IDs]
         E -->|3. Map parent IDs| F[Link OrderLines]

@@ -27,7 +27,7 @@ graph TD
     end
 
     subgraph Docker Containers
-        subgraph App Service (Django Application)
+        subgraph "App Service (Django Application)"
             cmd["Management Command: migrate_orders"]
             subgraph ETL Engine
                 extract["Extractor: Server-side Cursor (iterator)"]

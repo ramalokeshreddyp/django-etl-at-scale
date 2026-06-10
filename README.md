@@ -20,13 +20,13 @@ graph TD
     C -- No --> D([End Migration])
     C -- Yes --> E[Stream next batch of size N via iterator]
     
-    subgraph Transform Phase (In-Memory)
+    subgraph "Transform Phase (In-Memory)"
         E --> F[Parse Legacy JSON raw_data]
         F --> G[Instantiate Order & OrderLine models]
         G --> H[Map OrderLine parent reference in memory]
     end
     
-    subgraph Load Phase (Atomic Transaction)
+    subgraph "Load Phase (Atomic Transaction)"
         H --> I["bulk_create(orders)"]
         I --> J[Query newly created Orders by unique external_id]
         J --> K[Update OrderLine instances with saved primary keys]
