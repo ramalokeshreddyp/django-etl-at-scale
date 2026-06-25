@@ -1,7 +1,8 @@
 import time
 import tracemalloc
-from django.core.management.base import BaseCommand
-from django.db import transaction, connection
+from decimal import Decimal, InvalidOperation
+from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
 from orders.models import LegacyOrder, Order, OrderLine
 
 class Command(BaseCommand):
@@ -37,6 +38,9 @@ class Command(BaseCommand):
         dry_run = options['dry_run']
         start_from = options['start_from']
         limit = options.get('limit')
+
+        if batch_size <= 0:
+            raise CommandError('--batch-size must be a positive integer.')
 
         # Start tracking memory and time
         tracemalloc.start()
@@ -98,18 +102,30 @@ class Command(BaseCommand):
             raw = legacy_order.raw_data
             
             # 1. Transform LegacyOrder into Order instance (not saved yet)
+            total_value = raw.get('total', '0.00')
+            try:
+                total_decimal = Decimal(str(total_value))
+            except InvalidOperation:
+                total_decimal = Decimal('0.00')
+
             new_order = Order(
                 external_id=legacy_order.external_id,
                 customer_email=raw.get('customer_email', ''),
-                total=raw.get('total', '0.00')
+                total=total_decimal
             )
             
             # 2. Transform items list into OrderLine instances (not saved yet)
             for item in raw.get('items', []):
+                unit_price_value = item.get('unit_price', '0.00')
+                try:
+                    unit_price_decimal = Decimal(str(unit_price_value))
+                except InvalidOperation:
+                    unit_price_decimal = Decimal('0.00')
+
                 new_line = OrderLine(
                     sku=item.get('sku', ''),
                     quantity=int(item.get('quantity', 0)),
-                    unit_price=item.get('unit_price', '0.00')
+                    unit_price=unit_price_decimal
                 )
                 # Temporarily reference the unsaved Order instance so we can inspect its external_id during batch processing
                 new_line.order = new_order
@@ -131,11 +147,10 @@ class Command(BaseCommand):
             process_batch(orders_to_create, lines_to_create, processed_ids)
 
         elapsed = time.perf_counter() - start_time
-        snapshot = tracemalloc.take_snapshot()
+        _, peak_bytes = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
-        top_stats = snapshot.statistics('lineno')
-        total_mem = sum(stat.size for stat in top_stats) / (1024 * 1024) # MB
+        total_mem = peak_bytes / (1024 * 1024)
 
         throughput = total_processed / elapsed if elapsed > 0 else 0
 

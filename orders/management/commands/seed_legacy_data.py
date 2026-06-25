@@ -1,19 +1,29 @@
 import time
 from django.core.management.base import BaseCommand
-from orders.models import LegacyOrder
+from orders.models import LegacyOrder, Order
 
 class Command(BaseCommand):
     help = 'Seeds the LegacyOrder table with 500,000 records'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--count',
+            type=int,
+            default=500000,
+            help='Number of legacy records to seed'
+        )
+
     def handle(self, *args, **options):
-        self.stdout.write("Clearing existing LegacyOrder records...")
+        count = options['count']
+        self.stdout.write("Clearing existing normalized and legacy records...")
+        Order.objects.all().delete()
         LegacyOrder.objects.all().delete()
 
-        self.stdout.write("Generating 500,000 legacy order records...")
+        self.stdout.write(f"Generating {count:,} legacy order records...")
         start_time = time.perf_counter()
         
         batch_size = 10000
-        total_records = 500000
+        total_records = count
         batch = []
 
         for i in range(1, total_records + 1):
@@ -57,5 +67,5 @@ class Command(BaseCommand):
 
         elapsed = time.perf_counter() - start_time
         self.stdout.write(self.style.SUCCESS(
-            f"Successfully seeded 500,000 legacy records in {elapsed:.2f} seconds."
+            f"Successfully seeded {count:,} legacy records in {elapsed:.2f} seconds."
         ))

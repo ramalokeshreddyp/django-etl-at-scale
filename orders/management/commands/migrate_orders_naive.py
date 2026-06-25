@@ -59,11 +59,10 @@ class Command(BaseCommand):
             processed_count += 1
 
         elapsed = time.perf_counter() - start_time
-        snapshot = tracemalloc.take_snapshot()
+        _, peak_bytes = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
-        top_stats = snapshot.statistics('lineno')
-        total_mem = sum(stat.size for stat in top_stats) / (1024 * 1024) # MB
+        total_mem = peak_bytes / (1024 * 1024)
         
         query_count = len(connection.queries)
         
